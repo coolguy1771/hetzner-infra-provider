@@ -1,0 +1,23 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+syntax = "proto3";
+
+package hetznerspecs;
+
+option go_package = "github.com/coolguy1771/hetzner-infra-provider/api/specs";
+
+// MachineSpec is stored in Omni in the infra provisioner state.
+message MachineSpec {
+  string schematic = 1;
+  string talos_version = 2;
+  // architecture is "x86" or "arm", resolved from server_type.
+  string architecture = 3;
+  // image_id is the Hetzner snapshot Image ID, cached/shared across machines
+  // built from the same schematic/talos_version/architecture.
+  int64 image_id = 4;
+  int64 server_id = 5;
+  int64 create_action_id = 6;
+  repeated int64 volume_ids = 7;
+}

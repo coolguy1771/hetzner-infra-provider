@@ -1,0 +1,13 @@
+/_out/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+coverage.out
+coverage.html
+bin/
+.env
+.env.*
+!.env.example

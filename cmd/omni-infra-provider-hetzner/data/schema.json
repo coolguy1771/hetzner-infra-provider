@@ -1,0 +1,72 @@
+{
+  "type": "object",
+  "required": ["server_type", "location"],
+  "properties": {
+    "server_type": {
+      "type": "string",
+      "description": "Hetzner Cloud server type, e.g. 'cx22'"
+    },
+    "location": {
+      "type": "string",
+      "description": "Hetzner Cloud datacenter location, e.g. 'fsn1', 'nbg1', 'hel1', 'ash', 'hil'"
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Additional labels to set on the created server"
+    },
+    "networks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Existing Hetzner Cloud private network names (or numeric IDs) to attach"
+    },
+    "firewalls": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Existing Hetzner Cloud firewall names (or numeric IDs) to attach"
+    },
+    "placement_group": {
+      "type": "string",
+      "description": "Existing Hetzner Cloud placement group name (or numeric ID) to attach"
+    },
+    "ssh_keys": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Existing Hetzner Cloud SSH key names (or numeric IDs) for break-glass access. Talos itself never uses SSH."
+    },
+    "enable_public_ipv4": {
+      "type": "boolean",
+      "description": "Assign a public IPv4 address to the server. Defaults to true"
+    },
+    "enable_public_ipv6": {
+      "type": "boolean",
+      "description": "Assign a public IPv6 address to the server. Defaults to true"
+    },
+    "extensions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Extra Talos system extensions to bake into the schematic"
+    },
+    "volumes": {
+      "type": "array",
+      "description": "Additional Hetzner Cloud volumes to create and attach to the server",
+      "items": {
+        "type": "object",
+        "required": ["name", "size"],
+        "properties": {
+          "name": { "type": "string", "description": "Volume name, suffixed with the request ID" },
+          "size": { "type": "integer", "minimum": 10, "description": "Volume size in GB" },
+          "format": {
+            "type": "string",
+            "enum": ["ext4", "xfs"],
+            "description": "Filesystem to format the volume with"
+          },
+          "automount": {
+            "type": "boolean",
+            "description": "Automatically mount the volume on the server"
+          }
+        }
+      }
+    }
+  }
+}
