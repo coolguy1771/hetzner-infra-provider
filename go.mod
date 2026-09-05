@@ -1,12 +1,12 @@
 module github.com/coolguy1771/hetzner-infra-provider
 
-go 1.26.6
+go 1.26.7
 
 require (
 	github.com/apricote/hcloud-upload-image/hcloudimages/v2 v2.0.1
 	github.com/cosi-project/runtime v1.16.3
 	github.com/hetznercloud/hcloud-go/v2 v2.47.0
-	github.com/siderolabs/omni/client v1.10.5
+	github.com/siderolabs/omni/client v1.10.6
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v4 v4.0.0-rc.6
@@ -85,7 +85,7 @@ require (
 	github.com/siderolabs/net v0.4.0 // indirect
 	github.com/siderolabs/proto-codec v0.1.4 // indirect
 	github.com/siderolabs/protoenc v0.2.4 // indirect
-	github.com/siderolabs/siderolink v0.3.16 // indirect
+	github.com/siderolabs/siderolink v0.3.17 // indirect
 	github.com/siderolabs/talos/pkg/machinery v1.14.0-beta.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
