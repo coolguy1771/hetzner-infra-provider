@@ -297,6 +297,17 @@ func (p *Provisioner) createVolumes(ctx context.Context, _ *zap.Logger, pctx pro
 	return nil
 }
 
+// HealthCheck verifies connectivity to the Hetzner Cloud API.
+// Results are surfaced in the Omni UI via infra.WithHealthCheckFunc.
+func (p *Provisioner) HealthCheck(ctx context.Context) error {
+	_, _, err := p.hcloudClient.Location.List(ctx, hcloud.LocationListOpts{})
+	if err != nil {
+		return fmt.Errorf("hetzner cloud API unreachable: %w", err)
+	}
+
+	return nil
+}
+
 // Deprovision implements infra.Provisioner.
 func (p *Provisioner) Deprovision(ctx context.Context, logger *zap.Logger, machine *resources.Machine, _ *infra.MachineRequest) error {
 	spec := machine.TypedSpec().Value
