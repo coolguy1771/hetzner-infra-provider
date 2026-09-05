@@ -1,8 +1,9 @@
-/_out/
+_out/
 *.log
 .DS_Store
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 coverage.out
