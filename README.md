@@ -3,6 +3,10 @@
 Automatically provisions Talos nodes as [Hetzner Cloud](https://www.hetzner.com/cloud)
 servers, managed through [Omni](https://www.siderolabs.com/platform/saas-for-kubernetes/).
 
+Built against the Omni
+[infrastructure provider guide](https://docs.siderolabs.com/omni/infrastructure-and-extensions/writing-infrastructure-providers)
+using [`client/pkg/infra`](https://github.com/siderolabs/omni/tree/main/client/pkg/infra).
+
 ## How it works
 
 Hetzner Cloud has no direct image-upload API, so the provider builds a Talos
@@ -147,6 +151,22 @@ config:
 
 Reference existing Hetzner Cloud resources by name or numeric ID; they are
 resolved and attached at server creation time.
+
+## Design Notes
+
+Follows the Omni
+[writing infrastructure providers](https://docs.siderolabs.com/omni/infrastructure-and-extensions/writing-infrastructure-providers)
+guidance:
+
+- Shared snapshot images per schematic/Talos version/arch (not one image per machine).
+- `provision.WithoutConnectionParams` plus `infra.WithEncodeRequestIDsIntoTokens` so join
+  secrets stay out of the cached image; V2 tokens map machines to requests on join.
+- Join config delivered per server via Hetzner `user_data` (`ConnectionParams.JoinConfig`).
+- Long-running Hetzner actions polled with `provision.NewRetryInterval` instead of blocking.
+- Omni UI health via `infra.WithHealthCheckFunc` (Hetzner Cloud API reachability).
+- `SetMachineUUID` is not used: token encoding already maps requests to machines.
+
+State lives in Omni under the provider namespace; the process needs no local database.
 
 ## Recovering From an Interrupted Image Build
 
