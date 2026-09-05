@@ -92,6 +92,7 @@ var rootCmd = &cobra.Command{
 			infra.WithOmniEndpoint(cfg.omniAPIEndpoint),
 			infra.WithClientOptions(clientOptions...),
 			infra.WithEncodeRequestIDsIntoTokens(),
+			infra.WithHealthCheckFunc(provisioner.HealthCheck),
 			infra.WithVersion(version.Tag),
 			infra.WithConcurrency(cfg.concurrency),
 		)
