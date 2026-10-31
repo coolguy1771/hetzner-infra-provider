@@ -4,7 +4,7 @@ go 1.26.7
 
 require (
 	github.com/apricote/hcloud-upload-image/hcloudimages/v2 v2.0.1
-	github.com/cosi-project/runtime v1.16.3
+	github.com/cosi-project/runtime v1.16.4
 	github.com/hetznercloud/hcloud-go/v2 v2.47.0
 	github.com/siderolabs/omni/client v1.10.6
 	github.com/spf13/cobra v1.10.2
@@ -14,9 +14,9 @@ require (
 )
 
 require (
-	cel.dev/expr v0.25.2 // indirect
-	github.com/ProtonMail/go-crypto v1.4.1 // indirect
-	github.com/ProtonMail/gopenpgp/v3 v3.4.1 // indirect
+	cel.dev/expr v0.25.3 // indirect
+	github.com/ProtonMail/go-crypto v1.5.2 // indirect
+	github.com/ProtonMail/gopenpgp/v3 v3.5.2 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -33,32 +33,32 @@ require (
 	github.com/gertd/go-pluralize v0.2.1 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
-	github.com/go-openapi/jsonpointer v1.0.0 // indirect
-	github.com/go-openapi/jsonreference v1.0.0 // indirect
-	github.com/go-openapi/swag v0.28.0 // indirect
-	github.com/go-openapi/swag/cmdutils v0.28.0 // indirect
-	github.com/go-openapi/swag/conv v0.28.0 // indirect
-	github.com/go-openapi/swag/fileutils v0.28.0 // indirect
-	github.com/go-openapi/swag/jsonutils v0.28.0 // indirect
-	github.com/go-openapi/swag/loading v0.28.0 // indirect
-	github.com/go-openapi/swag/mangling v0.28.0 // indirect
-	github.com/go-openapi/swag/netutils v0.28.0 // indirect
-	github.com/go-openapi/swag/pools v0.28.0 // indirect
-	github.com/go-openapi/swag/stringutils v0.28.0 // indirect
-	github.com/go-openapi/swag/typeutils v0.28.0 // indirect
-	github.com/go-openapi/swag/yamlutils v0.28.0 // indirect
+	github.com/go-openapi/jsonpointer v1.0.2 // indirect
+	github.com/go-openapi/jsonreference v1.0.3 // indirect
+	github.com/go-openapi/swag v0.29.2 // indirect
+	github.com/go-openapi/swag/cmdutils v0.29.2 // indirect
+	github.com/go-openapi/swag/conv v0.29.2 // indirect
+	github.com/go-openapi/swag/fileutils v0.29.2 // indirect
+	github.com/go-openapi/swag/jsonutils v0.29.2 // indirect
+	github.com/go-openapi/swag/loading v0.29.2 // indirect
+	github.com/go-openapi/swag/mangling v0.29.2 // indirect
+	github.com/go-openapi/swag/netutils v0.29.2 // indirect
+	github.com/go-openapi/swag/pools v0.29.2 // indirect
+	github.com/go-openapi/swag/stringutils v0.29.2 // indirect
+	github.com/go-openapi/swag/typeutils v0.29.2 // indirect
+	github.com/go-openapi/swag/yamlutils v0.29.2 // indirect
 	github.com/google/cel-go v0.29.2 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.33.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jsimonetti/rtnetlink/v2 v2.2.1-0.20260714114318-c87a4183a51a // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jxskiss/base62 v1.1.0 // indirect
-	github.com/klauspost/compress v1.19.2 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/mdlayher/ethtool v0.6.1 // indirect
 	github.com/mdlayher/genetlink v1.4.0 // indirect
 	github.com/mdlayher/netlink v1.11.2 // indirect
@@ -78,7 +78,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.9 // indirect
 	github.com/siderolabs/crypto v0.6.5 // indirect
-	github.com/siderolabs/gen v0.8.7 // indirect
+	github.com/siderolabs/gen v0.8.8 // indirect
 	github.com/siderolabs/go-api-signature v0.3.13 // indirect
 	github.com/siderolabs/go-pointer v1.0.1 // indirect
 	github.com/siderolabs/image-factory v1.4.0 // indirect
@@ -94,21 +94,21 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
-	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/exp v0.0.0-20260709172345-9ea1abe57597 // indirect
-	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/time v0.16.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard v0.0.0-20260522210424-ecfc5a8d5446 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
-	google.golang.org/grpc v1.83.2 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20261026165753-2ffab32bce7e // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
+	google.golang.org/grpc v1.85.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.36.3 // indirect
