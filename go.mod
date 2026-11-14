@@ -9,7 +9,7 @@ require (
 	github.com/siderolabs/omni/client v1.10.6
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.28.0
-	go.yaml.in/yaml/v4 v4.0.0-rc.6
+	go.yaml.in/yaml/v4 v4.0.0
 	google.golang.org/protobuf v1.36.12
 )
 
