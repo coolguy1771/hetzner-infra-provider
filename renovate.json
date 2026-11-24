@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended",
+    "config:best-practices",
     ":semanticCommits"
   ],
   "packageRules": [
@@ -16,5 +16,5 @@
       "semanticCommitScope": null
     }
   ],
-  "postUpdateOptions": ["gomodTidy"]
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"]
 }
