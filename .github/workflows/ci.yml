@@ -41,8 +41,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: extractions/setup-just@v4
+
       - name: Test
-        run: make test
+        run: just test
 
   build:
     name: Build
@@ -55,8 +57,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: extractions/setup-just@v4
+
       - name: Build
-        run: make build
+        run: just build
 
       - name: Upload binary
         uses: actions/upload-artifact@v7
@@ -64,3 +68,34 @@ jobs:
           name: omni-infra-provider-hetzner
           path: _out/omni-infra-provider-hetzner
           if-no-files-found: error
+
+  goreleaser:
+    name: GoReleaser snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: anchore/sbom-action/download-syft@v0
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Check config
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
+
+      - name: Snapshot build (binaries, SBOMs, images; nothing is pushed or signed)
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean --skip=sign

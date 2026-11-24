@@ -71,7 +71,7 @@ services:
 ### Using the executable
 
 ```bash
-make build
+just build
 _out/omni-infra-provider-hetzner \
   --omni-api-endpoint https://<account-name>.omni.siderolabs.io/ \
   --omni-service-account-key <infra-provider-key>
@@ -178,3 +178,36 @@ omni-infra-provider-hetzner cleanup --config-file config.yaml
 ```
 
 to remove any leftover temporary servers/SSH keys.
+
+## Development
+
+Tasks are run with [just](https://github.com/casey/just) (`just --list`):
+`just build`, `just test`, `just lint`, `just generate`, and `just snapshot`
+(a full local GoReleaser build into `dist/`, nothing published).
+
+## Releases
+
+Releases are cut by [release-please](https://github.com/googleapis/release-please)
+from [Conventional Commits](https://www.conventionalcommits.org/) on `main`
+(`feat:`, `fix:`, `deps:`, …). It keeps a release PR open; merging it tags the
+release, and [GoReleaser](https://goreleaser.com) then publishes:
+
+- `linux`/`darwin` × `amd64`/`arm64` archives with SPDX SBOMs and `checksums.txt`
+- multi-arch images at `ghcr.io/coolguy1771/hetzner-infra-provider` (`X.Y.Z`,
+  `X.Y`, `latest`) with SBOM attestations
+- keyless [cosign](https://github.com/sigstore/cosign) signatures for the
+  checksums and the images
+
+Verify a release:
+
+```bash
+IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main'
+ISSUER='https://token.actions.githubusercontent.com'
+
+cosign verify-blob --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \
+  --bundle checksums.txt.sigstore.json checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+
+cosign verify ghcr.io/coolguy1771/hetzner-infra-provider:<version> \
+  --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+```
