@@ -35,9 +35,9 @@ test:
 release-check:
     goreleaser check
 
-# Build all release artifacts and images locally without publishing (output in dist/).
+# Build all release artifacts and images locally without publishing or signing (output in dist/).
 snapshot:
-    goreleaser release --snapshot --clean
+    goreleaser release --snapshot --clean --skip=sign
 
 # Print the version the next release would get (empty: nothing to release).
 next-version:
