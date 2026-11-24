@@ -187,10 +187,16 @@ Tasks are run with [just](https://github.com/casey/just) (`just --list`):
 
 ## Releases
 
-Releases are cut by [release-please](https://github.com/googleapis/release-please)
-from [Conventional Commits](https://www.conventionalcommits.org/) on `main`
-(`feat:`, `fix:`, `deps:`, …). It keeps a release PR open; merging it tags the
-release, and [GoReleaser](https://goreleaser.com) then publishes:
+Push a semver tag to release; [GoReleaser](https://goreleaser.com) builds,
+signs and publishes everything and writes the release notes from
+[Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
+`deps:`, …):
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+Each release contains:
 
 - `linux`/`darwin` × `amd64`/`arm64` tarballs and raw binaries
   (`omni-infra-provider-hetzner_<os>_<arch>`)
@@ -207,7 +213,7 @@ release, and [GoReleaser](https://goreleaser.com) then publishes:
 Verify a release:
 
 ```bash
-IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main'
+IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/tags/<tag>'
 ISSUER='https://token.actions.githubusercontent.com'
 
 cosign verify-blob --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \

@@ -123,24 +123,45 @@ docker_signs:
       - ${artifact}@${digest}
       - --yes
 
-# release-please owns the tag, release and changelog; GoReleaser only
-# attaches artifacts to the release it created.
 changelog:
-  disable: true
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^Merge "
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Dependencies
+      regexp: '^.*?(deps|build\(deps\))(\(.+\))??!?:.+$'
+      order: 3
+    - title: Other
+      order: 999
 
 release:
-  mode: keep-existing
+  prerelease: auto
   footer: |
     ## Verifying
 
     ```sh
-    cosign verify-blob \
-      --certificate-identity 'https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main' \
-      --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/tags/{{ .Tag }}'
+    ISSUER='https://token.actions.githubusercontent.com'
+
+    cosign verify-blob --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \
       --bundle checksums.txt.sigstore.json checksums.txt
     sha256sum --check --ignore-missing checksums.txt
 
     cosign verify ghcr.io/coolguy1771/hetzner-infra-provider:{{ .Version }} \
-      --certificate-identity 'https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main' \
-      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+      --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
     ```

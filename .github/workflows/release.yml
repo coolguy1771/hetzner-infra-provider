@@ -1,14 +1,12 @@
 name: Release
 
-# release-please keeps a release PR open on main. Merging it creates the tag
-# and GitHub release, and the goreleaser job below then attaches signed
-# binaries, SBOMs and multi-arch images to that release. GoReleaser runs in
-# this workflow (rather than on a tag push) because tags created with
-# GITHUB_TOKEN do not trigger other workflows.
+# Push a semver tag (e.g. `git tag v0.2.0 && git push origin v0.2.0`) to cut a
+# release. GoReleaser builds and signs every artifact, pushes the images and
+# creates the GitHub release with notes generated from conventional commits.
 
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
 
 concurrency:
   group: release-${{ github.ref }}
@@ -18,37 +16,17 @@ permissions:
   contents: read
 
 jobs:
-  release-please:
-    name: Release Please
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    steps:
-      - id: release
-        uses: googleapis/release-please-action@v5
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
   goreleaser:
     name: GoReleaser
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # upload release assets
+      contents: write # create the release and upload assets
       packages: write # push images to GHCR
       id-token: write # keyless cosign signing
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ needs.release-please.outputs.tag_name }}
 
       - uses: actions/setup-go@v7
         with:
