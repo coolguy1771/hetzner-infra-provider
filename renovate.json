@@ -14,7 +14,13 @@
       "matchManagers": ["github-actions"],
       "semanticCommitType": "ci",
       "semanticCommitScope": null
+    },
+    {
+      "description": "Automerge non-major updates once CI passes",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true
     }
   ],
+  "platformAutomerge": false,
   "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"]
 }
