@@ -7,11 +7,14 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/apricote/hcloud-upload-image/hcloudimages/v2"
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
+	"github.com/siderolabs/omni/client/pkg/imagefactory"
 	"github.com/siderolabs/omni/client/pkg/infra/provision"
 	"github.com/siderolabs/omni/client/pkg/omni/resources/infra"
 	"go.uber.org/zap"
@@ -27,6 +30,10 @@ const (
 	// features (e.g. accurate console/IP reporting) Hetzner's platform
 	// expects to be able to talk to.
 	qemuGuestAgentExtension = "siderolabs/qemu-guest-agent"
+
+	// imageDownloadTokenTTL is how long the image factory URL must stay valid:
+	// long enough to boot a rescue server and stream the image onto its disk.
+	imageDownloadTokenTTL = time.Hour
 )
 
 // Provisioner implements the Hetzner Cloud Omni infra provider.
@@ -46,7 +53,6 @@ func NewProvisioner(hcloudClient *hcloud.Client, imagesClient *hcloudimages.Clie
 // ProvisionSteps implements infra.Provisioner.
 func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 	return []provision.Step[*resources.Machine]{
-		provision.NewStep("createSchematic", p.createSchematic),
 		provision.NewStep("ensureImage", p.ensureImage),
 		provision.NewStep("createServer", p.createServer),
 		provision.NewStep("awaitServer", p.awaitServer),
@@ -54,17 +60,8 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 	}
 }
 
-func (p *Provisioner) createSchematic(ctx context.Context, logger *zap.Logger, pctx provision.Context[*resources.Machine]) error {
-	if pctx.State.TypedSpec().Value.Schematic != "" {
-		return nil
-	}
-
-	var data Data
-
-	if err := pctx.UnmarshalProviderData(&data); err != nil {
-		return err
-	}
-
+// schematicOptions returns the schematic options for a machine request.
+func schematicOptions(data Data) []provision.SchematicOption {
 	// WithoutConnectionParams is required here: the resulting image is shared and
 	// reused by every machine built from this schematic/Talos version, so no
 	// per-machine join secrets may be embedded in it. Join config is instead
@@ -79,20 +76,19 @@ func (p *Provisioner) createSchematic(ctx context.Context, logger *zap.Logger, p
 		extensions = append(extensions, extension)
 	}
 
-	opts := []provision.SchematicOption{
+	return []provision.SchematicOption{
 		provision.WithoutConnectionParams(),
 		provision.WithExtraExtensions(extensions...),
 	}
+}
 
-	schematic, err := pctx.GenerateSchematicID(ctx, logger, opts...)
-	if err != nil {
-		return err
+// talosArch maps a Hetzner server architecture to the Talos architecture name.
+func talosArch(arch hcloud.Architecture) string {
+	if arch == hcloud.ArchitectureARM {
+		return "arm64"
 	}
 
-	pctx.State.TypedSpec().Value.Schematic = schematic
-	pctx.State.TypedSpec().Value.TalosVersion = pctx.GetTalosVersion()
-
-	return nil
+	return "amd64"
 }
 
 func (p *Provisioner) ensureImage(ctx context.Context, logger *zap.Logger, pctx provision.Context[*resources.Machine]) error {
@@ -122,9 +118,27 @@ func (p *Provisioner) ensureImage(ctx context.Context, logger *zap.Logger, pctx 
 
 	pctx.State.TypedSpec().Value.Architecture = string(serverType.Architecture)
 
+	// The medium is fetched by hcloud-upload-image on a temporary rescue server,
+	// not by this process, so ask for a self-contained URL that stays valid for
+	// the whole (multi-minute) upload.
+	media, err := pctx.EnsureInstallationMedia(ctx, logger, provision.MediaSpec{
+		Kind:             imagefactory.InstallationMediaKindDisk,
+		Platform:         "hcloud",
+		Architecture:     talosArch(serverType.Architecture),
+		Format:           "raw.xz",
+		DownloadTokenTTL: imageDownloadTokenTTL,
+		StandaloneURL:    true,
+	}, schematicOptions(data)...)
+	if err != nil {
+		return fmt.Errorf("failed to resolve installation media: %w", err)
+	}
+
+	pctx.State.TypedSpec().Value.Schematic = media.SchematicID
+	pctx.State.TypedSpec().Value.TalosVersion = pctx.GetTalosVersion()
+
 	imageID, ok, err := p.imageCache.ensureImage(
 		ctx, logger,
-		pctx.State.TypedSpec().Value.Schematic,
+		media,
 		pctx.State.TypedSpec().Value.TalosVersion,
 		serverType.Architecture,
 		location,
@@ -197,9 +211,7 @@ func (p *Provisioner) createServer(ctx context.Context, _ *zap.Logger, pctx prov
 	machineRequestSet, _ := pctx.GetMachineRequestSetID()
 
 	labels := map[string]string{}
-	for k, v := range data.Labels {
-		labels[k] = v
-	}
+	maps.Copy(labels, data.Labels)
 
 	if machineRequestSet != "" {
 		labels[machineRequestSetLabel] = machineRequestSet
@@ -217,7 +229,7 @@ func (p *Provisioner) createServer(ctx context.Context, _ *zap.Logger, pctx prov
 		SSHKeys:    sshKeys,
 
 		PlacementGroup:   placementGroup,
-		StartAfterCreate: hcloud.Ptr(true),
+		StartAfterCreate: new(true),
 		PublicNet: &hcloud.ServerCreatePublicNet{
 			EnableIPv4: boolDefault(data.EnablePublicIPv4, true),
 			EnableIPv6: boolDefault(data.EnablePublicIPv6, true),
@@ -233,17 +245,65 @@ func (p *Provisioner) createServer(ctx context.Context, _ *zap.Logger, pctx prov
 	return provision.NewRetryInterval(5 * time.Second)
 }
 
-func (p *Provisioner) awaitServer(ctx context.Context, _ *zap.Logger, pctx provision.Context[*resources.Machine]) error {
+func (p *Provisioner) awaitServer(ctx context.Context, logger *zap.Logger, pctx provision.Context[*resources.Machine]) error {
 	actionID := pctx.State.TypedSpec().Value.CreateActionId
 	if actionID == 0 {
 		return nil
 	}
 
-	if err := p.checkActionStatus(ctx, actionID); err != nil {
+	err := p.checkActionStatus(ctx, actionID)
+
+	if actionErr, ok := errors.AsType[hcloud.ActionError](err); ok {
+		// The create action failed for good (e.g. resource_unavailable when the
+		// location is out of capacity). Polling the same action again can never
+		// succeed, so discard the half-created server and start over from
+		// createServer on the next reconcile.
+		logger.Warn("server creation failed, recreating",
+			zap.Int64("server_id", pctx.State.TypedSpec().Value.ServerId),
+			zap.String("code", actionErr.Code),
+			zap.String("message", actionErr.Message),
+		)
+
+		if delErr := p.deleteServer(ctx, pctx.State.TypedSpec().Value.ServerId); delErr != nil {
+			return fmt.Errorf("server creation failed (%w), and cleanup failed: %w", err, delErr)
+		}
+
+		pctx.State.TypedSpec().Value.ServerId = 0
+		pctx.State.TypedSpec().Value.CreateActionId = 0
+
+		return fmt.Errorf("server creation failed, will retry: %w", err)
+	}
+
+	if err != nil {
 		return err
 	}
 
 	pctx.State.TypedSpec().Value.CreateActionId = 0
+
+	return nil
+}
+
+// deleteServer deletes a server and waits for the deletion to finish. A server
+// that is already gone is not an error.
+func (p *Provisioner) deleteServer(ctx context.Context, serverID int64) error {
+	if serverID == 0 {
+		return nil
+	}
+
+	result, _, err := p.hcloudClient.Server.DeleteWithResult(ctx, &hcloud.Server{ID: serverID})
+	if err != nil {
+		if isAlreadyGoneErr(err) {
+			return nil
+		}
+
+		return fmt.Errorf("failed to delete server %d: %w", serverID, err)
+	}
+
+	if result.Action != nil {
+		if err = p.hcloudClient.Action.WaitFor(ctx, result.Action); err != nil {
+			return fmt.Errorf("failed waiting for server %d deletion: %w", serverID, err)
+		}
+	}
 
 	return nil
 }
@@ -273,11 +333,11 @@ func (p *Provisioner) createVolumes(ctx context.Context, _ *zap.Logger, pctx pro
 			Name:      fmt.Sprintf("%s-%s", pctx.GetRequestID(), volume.Name),
 			Size:      volume.Size,
 			Server:    server,
-			Automount: hcloud.Ptr(volume.Automount),
+			Automount: new(volume.Automount),
 		}
 
 		if volume.Format != "" {
-			opts.Format = hcloud.Ptr(volume.Format)
+			opts.Format = new(volume.Format)
 		}
 
 		result, _, err := p.hcloudClient.Volume.Create(ctx, opts)
