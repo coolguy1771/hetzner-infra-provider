@@ -1,62 +1,103 @@
 name: Release
 
-on:
-  push:
-    branches: [main]
-    tags: ["v*"]
+# Every push to main that passes CI is released automatically. The next
+# version comes from the Conventional Commits since the last tag (see
+# hack/next-version.sh): feat → minor, fix/perf/deps → patch, breaking →
+# major (minor before 1.0). Commits that are only chore/ci/docs/… are not
+# released.
+#
+# Tagging and GoReleaser run in one job because a tag pushed with
+# GITHUB_TOKEN does not trigger other workflows.
 
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+# One release at a time, in order, so two quick merges can't compute the
+# same version.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  docker:
-    name: Build and push image
+  release:
+    name: Tag and release
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the tag, create the release, upload assets
+      packages: write # push images to GHCR
+      id-token: write # keyless cosign signing
     steps:
       - uses: actions/checkout@v7
         with:
+          # Release exactly the commit CI tested, even if main moved on.
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Image metadata
-        id: meta
-        uses: docker/metadata-action@v6
+      - name: Determine version
+        id: version
+        run: |
+          # A re-run for an already-tagged commit re-releases that tag.
+          tag=$(git tag --points-at HEAD --list 'v[0-9]*' | sort -V | tail -n1)
+
+          if [[ -z "$tag" ]]; then
+            tag=$(hack/next-version.sh)
+            new=true
+          else
+            new=false
+          fi
+
+          if [[ -z "$tag" ]]; then
+            echo "No releasable commits since $(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo 'the beginning'); skipping." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Releasing $tag" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+
+      - name: Push tag
+        if: steps.version.outputs.tag != '' && steps.version.outputs.new == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+
+      - uses: actions/setup-go@v7
+        if: steps.version.outputs.tag != ''
         with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+          go-version-file: go.mod
+          cache: true
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      - uses: sigstore/cosign-installer@v4
+        if: steps.version.outputs.tag != ''
+      - uses: anchore/sbom-action/download-syft@v0
+        if: steps.version.outputs.tag != ''
+      - uses: docker/setup-qemu-action@v4
+        if: steps.version.outputs.tag != ''
+      - uses: docker/setup-buildx-action@v4
+        if: steps.version.outputs.tag != ''
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
+      - uses: docker/login-action@v4
+        if: steps.version.outputs.tag != ''
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v7
+      - uses: goreleaser/goreleaser-action@v7
+        if: steps.version.outputs.tag != ''
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
-            SHA=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.tag }}
