@@ -192,9 +192,15 @@ from [Conventional Commits](https://www.conventionalcommits.org/) on `main`
 (`feat:`, `fix:`, `deps:`, …). It keeps a release PR open; merging it tags the
 release, and [GoReleaser](https://goreleaser.com) then publishes:
 
-- `linux`/`darwin` × `amd64`/`arm64` archives with SPDX SBOMs and `checksums.txt`
-- multi-arch images at `ghcr.io/coolguy1771/hetzner-infra-provider` (`X.Y.Z`,
-  `X.Y`, `latest`) with SBOM attestations
+- `linux`/`darwin` × `amd64`/`arm64` tarballs and raw binaries
+  (`omni-infra-provider-hetzner_<os>_<arch>`)
+- `deb`, `rpm`, `apk` and Arch Linux packages that install a hardened systemd
+  unit; set credentials in `/etc/omni-infra-provider-hetzner/env`, then
+  `systemctl enable --now omni-infra-provider-hetzner`
+- SPDX SBOMs for every archive and package, and `checksums.txt`
+- multi-arch `scratch` images (non-root) at
+  `ghcr.io/coolguy1771/hetzner-infra-provider` (`X.Y.Z`, `X.Y`, `latest`) with
+  SBOM attestations
 - keyless [cosign](https://github.com/sigstore/cosign) signatures for the
   checksums and the images
 

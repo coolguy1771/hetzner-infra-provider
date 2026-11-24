@@ -1,0 +1,34 @@
+[Unit]
+Description=Omni infrastructure provider for Hetzner Cloud
+Documentation=https://github.com/coolguy1771/hetzner-infra-provider
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+# OMNI_ENDPOINT, OMNI_SERVICE_ACCOUNT_KEY and HCLOUD_TOKEN (or a --config-file
+# in OPTIONS) must be set here before the service can start.
+EnvironmentFile=/etc/omni-infra-provider-hetzner/env
+ExecStart=/usr/bin/omni-infra-provider-hetzner $OPTIONS
+Restart=on-failure
+RestartSec=10s
+
+DynamicUser=yes
+ConfigurationDirectory=omni-infra-provider-hetzner
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

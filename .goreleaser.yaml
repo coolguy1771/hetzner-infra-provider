@@ -31,12 +31,47 @@ archives:
       - LICENSE
       - README.md
 
+  # The bare binaries, published as release assets next to the tarballs.
+  - id: binary
+    ids: [provider]
+    formats: [binary]
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+
+nfpms:
+  - id: packages
+    ids: [provider]
+    package_name: omni-infra-provider-hetzner
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: coolguy1771
+    homepage: https://github.com/coolguy1771/hetzner-infra-provider
+    maintainer: coolguy1771 <https://github.com/coolguy1771>
+    description: Omni infrastructure provider for Hetzner Cloud
+    license: MPL-2.0
+    formats: [deb, rpm, apk, archlinux]
+    bindir: /usr/bin
+    section: admin
+    contents:
+      - src: packaging/omni-infra-provider-hetzner.service
+        dst: /usr/lib/systemd/system/omni-infra-provider-hetzner.service
+      - src: packaging/env
+        dst: /etc/omni-infra-provider-hetzner/env
+        type: config|noreplace
+        file_info:
+          mode: 0600
+      - src: LICENSE
+        dst: /usr/share/licenses/omni-infra-provider-hetzner/LICENSE
+    archlinux:
+      packager: coolguy1771 <https://github.com/coolguy1771>
+
 checksum:
   name_template: checksums.txt
 
-# SPDX SBOM for every archive, generated with syft.
+# SPDX SBOMs, generated with syft, for every archive and OS package.
 sboms:
-  - artifacts: archive
+  - id: archives
+    artifacts: archive
+  - id: packages
+    artifacts: package
 
 # Keyless (Sigstore/Fulcio) signature over checksums.txt, which covers every
 # archive and SBOM.
