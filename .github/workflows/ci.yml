@@ -14,8 +14,47 @@ permissions:
   contents: read
 
 jobs:
+  # Skips the expensive jobs when only docs or repo metadata changed. Jobs are
+  # skipped (not the whole workflow filtered out) so required status checks
+  # still report and branch protection doesn't wait forever.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # A new branch or an unknown base: run everything.
+          if [[ -z "$BASE" || "$BASE" =~ ^0+$ ]] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          echo "Changed files:"; echo "$changed"
+
+          # Anything not matching these patterns counts as a code change.
+          code=$(grep -vE '(^|/)[^/]+\.md$|^LICENSE$|^\.gitignore$|^renovate\.json$|^\.github/workflows/pr-title\.yml$' <<<"$changed" || true)
+
+          if [[ -n "$code" ]]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Only docs/metadata changed; skipping lint, test and snapshot." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   lint:
     name: Lint
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -32,6 +71,8 @@ jobs:
 
   test:
     name: Test
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -46,31 +87,12 @@ jobs:
       - name: Test
         run: just test
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
-
-      - name: Build
-        run: just build
-
-      - name: Upload binary
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: omni-infra-provider-hetzner
-          path: _out/omni-infra-provider-hetzner
-          if-no-files-found: error
-
+  # Builds every binary, package, SBOM and image without publishing. Runs on
+  # PRs only: on main the release job does the same build for real.
   goreleaser:
     name: GoReleaser snapshot
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -93,7 +115,7 @@ jobs:
           version: "~> v2"
           args: check
 
-      - name: Snapshot build (binaries, SBOMs, images; nothing is pushed or signed)
+      - name: Snapshot build (binaries, packages, SBOMs, images; nothing is pushed or signed)
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           distribution: goreleaser
