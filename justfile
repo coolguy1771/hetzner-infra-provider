@@ -39,6 +39,10 @@ release-check:
 snapshot:
     goreleaser release --snapshot --clean
 
+# Print the version the next release would get (empty: nothing to release).
+next-version:
+    @hack/next-version.sh
+
 # Remove build output.
 clean:
     rm -rf _out dist

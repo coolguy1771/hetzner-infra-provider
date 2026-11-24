@@ -187,14 +187,20 @@ Tasks are run with [just](https://github.com/casey/just) (`just --list`):
 
 ## Releases
 
-Push a semver tag to release; [GoReleaser](https://goreleaser.com) builds,
-signs and publishes everything and writes the release notes from
-[Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
-`deps:`, …):
+Every merge to `main` that passes CI is released automatically. The version is
+derived from the [Conventional Commits](https://www.conventionalcommits.org/)
+since the last tag (`hack/next-version.sh`, or `just next-version`):
 
-```bash
-git tag v0.2.0 && git push origin v0.2.0
-```
+| Commit                                   | Bump                          |
+| ---------------------------------------- | ----------------------------- |
+| `type!:` or a `BREAKING CHANGE:` footer  | major (minor while < `1.0.0`) |
+| `feat:`                                  | minor                         |
+| `fix:`, `perf:`, `deps:`                 | patch                         |
+| `chore:`, `ci:`, `docs:`, `test:`, other | no release                    |
+
+With squash merges, the PR title is the commit, so give PRs conventional titles.
+[GoReleaser](https://goreleaser.com) then tags, builds, signs and publishes the
+release, with notes grouped from the same commits.
 
 Each release contains:
 
@@ -213,7 +219,7 @@ Each release contains:
 Verify a release:
 
 ```bash
-IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/tags/<tag>'
+IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main'
 ISSUER='https://token.actions.githubusercontent.com'
 
 cosign verify-blob --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \

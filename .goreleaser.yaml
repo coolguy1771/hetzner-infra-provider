@@ -151,11 +151,13 @@ changelog:
 
 release:
   prerelease: auto
+  # Lets a re-run of the release job re-upload assets to an existing release.
+  replace_existing_artifacts: true
   footer: |
     ## Verifying
 
     ```sh
-    IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/tags/{{ .Tag }}'
+    IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main'
     ISSUER='https://token.actions.githubusercontent.com'
 
     cosign verify-blob --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \
