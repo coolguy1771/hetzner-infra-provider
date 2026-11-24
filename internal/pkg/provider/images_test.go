@@ -7,6 +7,8 @@ package provider
 import (
 	"strings"
 	"testing"
+
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 )
 
 func TestImageCacheKey(t *testing.T) {
@@ -69,14 +71,12 @@ func TestImageLabelSelectorTruncatesSchematic(t *testing.T) {
 	}
 }
 
-func TestTalosImageFactoryURL(t *testing.T) {
-	u, err := talosImageFactoryURL("sha256:abc", "v1.9.0")
-	if err != nil {
-		t.Fatalf("talosImageFactoryURL() error = %v", err)
+func TestTalosArch(t *testing.T) {
+	if got := talosArch(hcloud.ArchitectureX86); got != "amd64" {
+		t.Errorf("talosArch(x86) = %q, want amd64", got)
 	}
 
-	want := "https://factory.talos.dev/image/sha256:abc/v1.9.0/hcloud-amd64.raw.xz"
-	if u.String() != want {
-		t.Errorf("talosImageFactoryURL() = %q, want %q", u.String(), want)
+	if got := talosArch(hcloud.ArchitectureARM); got != "arm64" {
+		t.Errorf("talosArch(arm) = %q, want arm64", got)
 	}
 }
