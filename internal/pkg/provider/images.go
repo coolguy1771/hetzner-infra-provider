@@ -6,18 +6,18 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
 
 	"github.com/apricote/hcloud-upload-image/hcloudimages/v2"
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
+	"github.com/siderolabs/omni/client/pkg/imagefactory"
 	"go.uber.org/zap"
 )
 
 const (
-	imageFactoryBaseURL = "https://factory.talos.dev"
-
 	labelSchematic    = "schematic"
 	labelTalosVersion = "talos-version"
 	labelArch         = "arch"
@@ -83,27 +83,17 @@ func imageLabelSelector(schematic, talosVersion, arch string) string {
 	)
 }
 
-func talosImageFactoryURL(schematic, talosVersion string) (*url.URL, error) {
-	u, err := url.Parse(imageFactoryBaseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	return u.JoinPath("image", schematic, talosVersion, "hcloud-amd64.raw.xz"), nil
-}
-
 // ensureImage returns the Hetzner Cloud snapshot image ID for the given
 // schematic/talos-version/architecture, building it if it does not exist yet.
 // While a build is in flight it returns ok=false so the caller can retry later
 // instead of blocking on the multi-minute upload.
-func (c *imageCache) ensureImage(ctx context.Context, logger *zap.Logger, schematic, talosVersion string, arch hcloud.Architecture, location *hcloud.Location) (imageID int64, ok bool, err error) {
+func (c *imageCache) ensureImage(ctx context.Context, logger *zap.Logger, media imagefactory.InstallationMedia, talosVersion string, arch hcloud.Architecture, location *hcloud.Location) (imageID int64, ok bool, err error) {
+	schematic := media.SchematicID
 	key := imageCacheKey(schematic, talosVersion, string(arch))
 
 	images, err := c.hcloudClient.Image.AllWithOpts(ctx, hcloud.ImageListOpts{
-		ListOpts: hcloud.ListOpts{
-			LabelSelector: imageLabelSelector(schematic, talosVersion, string(arch)),
-		},
-		Type: []hcloud.ImageType{hcloud.ImageTypeSnapshot},
+		LabelSelector: imageLabelSelector(schematic, talosVersion, string(arch)),
+		Type:          []hcloud.ImageType{hcloud.ImageTypeSnapshot},
 	})
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to list images: %w", err)
@@ -122,7 +112,7 @@ func (c *imageCache) ensureImage(ctx context.Context, logger *zap.Logger, schema
 		build = &imageBuild{done: make(chan struct{})}
 		c.builds[key] = build
 
-		go c.runBuild(build, schematic, talosVersion, arch, location)
+		go c.runBuild(build, media, talosVersion, arch, location)
 	}
 
 	c.mu.Unlock()
@@ -146,26 +136,26 @@ func (c *imageCache) ensureImage(ctx context.Context, logger *zap.Logger, schema
 	return build.image.ID, true, nil
 }
 
-func (c *imageCache) runBuild(build *imageBuild, schematic, talosVersion string, arch hcloud.Architecture, location *hcloud.Location) {
+func (c *imageCache) runBuild(build *imageBuild, media imagefactory.InstallationMedia, talosVersion string, arch hcloud.Architecture, location *hcloud.Location) {
 	defer close(build.done)
 
 	ctx := context.Background()
+	schematic := media.SchematicID
 
-	imageURL, err := talosImageFactoryURL(schematic, talosVersion)
+	// The URL may embed a download token, so it is never logged.
+	imageURL, err := url.Parse(media.URL)
 	if err != nil {
-		build.err = err
+		build.err = errors.New("image factory returned an invalid installation media URL")
 
 		return
 	}
 
 	build.image, build.err = c.imagesClient.Upload(ctx, hcloudimages.UploadOptions{
-		WriteOptions: hcloudimages.WriteOptions{
-			ImageURL:         imageURL,
-			ImageCompression: hcloudimages.CompressionXZ,
-		},
-		Architecture: arch,
-		Location:     location,
-		Description:  hcloud.Ptr(fmt.Sprintf("Talos %s (%s)", talosVersion, schematic)),
+		ImageURL:         imageURL,
+		ImageCompression: hcloudimages.CompressionXZ,
+		Architecture:     arch,
+		Location:         location,
+		Description:      new(fmt.Sprintf("Talos %s (%s)", talosVersion, schematic)),
 		Labels: map[string]string{
 			labelSchematic:    hetznerLabelValue(schematic),
 			labelTalosVersion: talosVersion,
