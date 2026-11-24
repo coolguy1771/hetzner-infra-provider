@@ -8,7 +8,9 @@
 
 # Only used to source the CA bundle (the provider talks TLS to Omni, the
 # Hetzner Cloud API and the image factory); nothing from it ships otherwise.
-FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS certs
+# The bundle is architecture-independent, so this stage runs on the build
+# platform instead of under QEMU emulation for every target.
+FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS certs
 RUN apk add --no-cache ca-certificates
 
 FROM scratch
