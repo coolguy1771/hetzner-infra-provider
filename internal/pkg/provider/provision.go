@@ -34,6 +34,10 @@ const (
 	// imageDownloadTokenTTL is how long the image factory URL must stay valid:
 	// long enough to boot a rescue server and stream the image onto its disk.
 	imageDownloadTokenTTL = time.Hour
+
+	// serverRecreateInterval is how long to wait before recreating a server
+	// whose creation failed, e.g. because the location was out of capacity.
+	serverRecreateInterval = time.Minute
 )
 
 // Provisioner implements the Hetzner Cloud Omni infra provider.
@@ -53,6 +57,11 @@ func NewProvisioner(hcloudClient *hcloud.Client, imagesClient *hcloudimages.Clie
 // ProvisionSteps implements infra.Provisioner.
 func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 	return []provision.Step[*resources.Machine]{
+		// createSchematic is a no-op kept so that requests checkpointed at it by
+		// older versions resume here instead of matching no step at all (which
+		// would skip provisioning entirely). Schematic resolution now happens in
+		// ensureImage.
+		provision.NewStep("createSchematic", func(context.Context, *zap.Logger, provision.Context[*resources.Machine]) error { return nil }),
 		provision.NewStep("ensureImage", p.ensureImage),
 		provision.NewStep("createServer", p.createServer),
 		provision.NewStep("awaitServer", p.awaitServer),
@@ -246,6 +255,12 @@ func (p *Provisioner) createServer(ctx context.Context, _ *zap.Logger, pctx prov
 }
 
 func (p *Provisioner) awaitServer(ctx context.Context, logger *zap.Logger, pctx provision.Context[*resources.Machine]) error {
+	// A previous attempt failed and discarded its server. The controller resumes
+	// at this step, not createServer, so recreate the server from here.
+	if pctx.State.TypedSpec().Value.ServerId == 0 {
+		return p.createServer(ctx, logger, pctx)
+	}
+
 	actionID := pctx.State.TypedSpec().Value.CreateActionId
 	if actionID == 0 {
 		return nil
@@ -271,7 +286,9 @@ func (p *Provisioner) awaitServer(ctx context.Context, logger *zap.Logger, pctx 
 		pctx.State.TypedSpec().Value.ServerId = 0
 		pctx.State.TypedSpec().Value.CreateActionId = 0
 
-		return fmt.Errorf("server creation failed, will retry: %w", err)
+		// A retry error (unlike a plain error) makes the controller persist the
+		// reset above, so the next reconcile recreates the server.
+		return provision.NewRetryError(fmt.Errorf("server creation failed, will retry: %w", err), serverRecreateInterval)
 	}
 
 	if err != nil {
