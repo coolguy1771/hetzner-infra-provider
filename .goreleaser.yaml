@@ -1,0 +1,169 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: omni-infra-provider-hetzner
+
+before:
+  hooks:
+    - go mod tidy -diff
+
+builds:
+  - id: provider
+    main: ./cmd/omni-infra-provider-hetzner
+    binary: omni-infra-provider-hetzner
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X github.com/coolguy1771/hetzner-infra-provider/internal/version.Tag={{ .Tag }}
+      - -X github.com/coolguy1771/hetzner-infra-provider/internal/version.SHA={{ .ShortCommit }}
+
+archives:
+  - id: provider
+    ids: [provider]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+  # The bare binaries, published as release assets next to the tarballs.
+  - id: binary
+    ids: [provider]
+    formats: [binary]
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+
+nfpms:
+  - id: packages
+    ids: [provider]
+    package_name: omni-infra-provider-hetzner
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: coolguy1771
+    homepage: https://github.com/coolguy1771/hetzner-infra-provider
+    maintainer: coolguy1771 <https://github.com/coolguy1771>
+    description: Omni infrastructure provider for Hetzner Cloud
+    license: MPL-2.0
+    formats: [deb, rpm, apk, archlinux]
+    bindir: /usr/bin
+    section: admin
+    contents:
+      - src: packaging/omni-infra-provider-hetzner.service
+        dst: /usr/lib/systemd/system/omni-infra-provider-hetzner.service
+      - src: packaging/env
+        dst: /etc/omni-infra-provider-hetzner/env
+        type: config|noreplace
+        file_info:
+          mode: 0600
+      - src: LICENSE
+        dst: /usr/share/licenses/omni-infra-provider-hetzner/LICENSE
+    archlinux:
+      packager: coolguy1771 <https://github.com/coolguy1771>
+
+checksum:
+  name_template: checksums.txt
+
+# SPDX SBOMs, generated with syft, for every archive and OS package.
+sboms:
+  - id: archives
+    artifacts: archive
+  - id: packages
+    artifacts: package
+
+# Keyless (Sigstore/Fulcio) signature over checksums.txt, which covers every
+# archive and SBOM.
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - --bundle=${signature}
+      - ${artifact}
+      - --yes
+    artifacts: checksum
+
+dockers_v2:
+  - id: provider
+    ids: [provider]
+    images:
+      - ghcr.io/coolguy1771/hetzner-infra-provider
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    sbom: true
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: Omni infrastructure provider for Hetzner Cloud
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.licenses: MPL-2.0
+    annotations:
+      org.opencontainers.image.description: Omni infrastructure provider for Hetzner Cloud
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.licenses: MPL-2.0
+
+# Keyless cosign signature on the pushed multi-arch image, by digest.
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - sign
+      - ${artifact}@${digest}
+      - --yes
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^Merge "
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Dependencies
+      regexp: '^.*?(deps|build\(deps\))(\(.+\))??!?:.+$'
+      order: 3
+    - title: Other
+      order: 999
+
+release:
+  prerelease: auto
+  # Lets a re-run of the release job re-upload assets to an existing release.
+  replace_existing_artifacts: true
+  footer: |
+    ## Verifying
+
+    ```sh
+    IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main'
+    ISSUER='https://token.actions.githubusercontent.com'
+
+    cosign verify-blob --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \
+      --bundle checksums.txt.sigstore.json checksums.txt
+    sha256sum --check --ignore-missing checksums.txt
+
+    cosign verify ghcr.io/coolguy1771/hetzner-infra-provider:{{ .Version }} \
+      --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+    ```

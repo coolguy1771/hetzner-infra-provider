@@ -71,7 +71,7 @@ services:
 ### Using the executable
 
 ```bash
-make build
+just build
 _out/omni-infra-provider-hetzner \
   --omni-api-endpoint https://<account-name>.omni.siderolabs.io/ \
   --omni-service-account-key <infra-provider-key>
@@ -178,3 +178,54 @@ omni-infra-provider-hetzner cleanup --config-file config.yaml
 ```
 
 to remove any leftover temporary servers/SSH keys.
+
+## Development
+
+Tasks are run with [just](https://github.com/casey/just) (`just --list`):
+`just build`, `just test`, `just lint`, `just generate`, and `just snapshot`
+(a full local GoReleaser build into `dist/`, nothing published).
+
+## Releases
+
+Every merge to `main` that passes CI is released automatically. The version is
+derived from the [Conventional Commits](https://www.conventionalcommits.org/)
+since the last tag (`hack/next-version.sh`, or `just next-version`):
+
+| Commit                                   | Bump                          |
+| ---------------------------------------- | ----------------------------- |
+| `type!:` or a `BREAKING CHANGE:` footer  | major (minor while < `1.0.0`) |
+| `feat:`                                  | minor                         |
+| `fix:`, `perf:`, `deps:`                 | patch                         |
+| `chore:`, `ci:`, `docs:`, `test:`, other | no release                    |
+
+With squash merges, the PR title is the commit, so give PRs conventional titles.
+[GoReleaser](https://goreleaser.com) then tags, builds, signs and publishes the
+release, with notes grouped from the same commits.
+
+Each release contains:
+
+- `linux`/`darwin` × `amd64`/`arm64` tarballs and raw binaries
+  (`omni-infra-provider-hetzner_<os>_<arch>`)
+- `deb`, `rpm`, `apk` and Arch Linux packages that install a hardened systemd
+  unit; set credentials in `/etc/omni-infra-provider-hetzner/env`, then
+  `systemctl enable --now omni-infra-provider-hetzner`
+- SPDX SBOMs for every archive and package, and `checksums.txt`
+- multi-arch `scratch` images (non-root) at
+  `ghcr.io/coolguy1771/hetzner-infra-provider` (`X.Y.Z`, `X.Y`, `latest`) with
+  SBOM attestations
+- keyless [cosign](https://github.com/sigstore/cosign) signatures for the
+  checksums and the images
+
+Verify a release:
+
+```bash
+IDENTITY='https://github.com/coolguy1771/hetzner-infra-provider/.github/workflows/release.yml@refs/heads/main'
+ISSUER='https://token.actions.githubusercontent.com'
+
+cosign verify-blob --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \
+  --bundle checksums.txt.sigstore.json checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+
+cosign verify ghcr.io/coolguy1771/hetzner-infra-provider:<version> \
+  --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+```

@@ -1,0 +1,9 @@
+# Environment for omni-infra-provider-hetzner.service.
+# This file holds secrets: keep it mode 0600.
+
+OMNI_ENDPOINT=
+OMNI_SERVICE_ACCOUNT_KEY=
+HCLOUD_TOKEN=
+
+# Extra command-line flags, e.g. "--config-file /etc/omni-infra-provider-hetzner/config.yaml --concurrency 8".
+OPTIONS=
