@@ -6,7 +6,7 @@ require (
 	github.com/apricote/hcloud-upload-image/hcloudimages/v2 v2.0.1
 	github.com/cosi-project/runtime v1.17.1
 	github.com/hetznercloud/hcloud-go/v2 v2.53.0
-	github.com/siderolabs/omni/client v1.14.0
+	github.com/siderolabs/omni/client v1.14.1
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v4 v4.0.0
